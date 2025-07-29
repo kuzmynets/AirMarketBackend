@@ -1,0 +1,6 @@
+fastapi
+uvicorn
+firebase-admin
+passlib[bcrypt]
+python-jose
+python-dotenv
