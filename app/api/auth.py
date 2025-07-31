@@ -4,6 +4,9 @@ from app.schemas.user import UserCreate
 from app.schemas.token import Token
 from app.crud import user as crud_user
 from app.core.security import create_access_token, verify_password
+from fastapi.security import OAuth2PasswordBearer
+
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login")
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
