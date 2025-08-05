@@ -1,52 +1,53 @@
 from fastapi import APIRouter, Depends, HTTPException
-from app.schemas.ad import AdCreate, AdUpdate, AdOut
-from app.crud import ad as crud_ad
-from app.api.auth import oauth2_scheme
-from app.core.security import decode_token
+from app.core.firebase import db, get_user_by_token
+from app.core.auth import get_token
+from pydantic import BaseModel
 from typing import List
+from datetime import datetime
+import uuid
 
 router = APIRouter(prefix="/ads", tags=["ads"])
 
-def get_current_user_email(token: str = Depends(oauth2_scheme)) -> str:
-    try:
-        payload = decode_token(token)
-        email: str = payload.get("sub")
-        if email is None:
-            raise HTTPException(status_code=401, detail="Invalid token")
-        return email
-    except:
-        raise HTTPException(status_code=401, detail="Invalid token")
+class AdCreate(BaseModel):
+    title: str
+    description: str
+    price: float
 
-@router.post("/", response_model=AdOut)
-def create_ad(ad: AdCreate, user_email: str = Depends(get_current_user_email)):
-    created = crud_ad.create_ad(ad, user_email)
-    return {**ad.dict(), "owner_email": user_email, "id": "N/A"}
+@router.post("/")
+def create_ad(ad: AdCreate, token: str = Depends(get_token)):
+    user = get_user_by_token(token)
+    ad_id = str(uuid.uuid4())
+    data = {
+        "id": ad_id,
+        "title": ad.title,
+        "description": ad.description,
+        "price": ad.price,
+        "user_id": user["uid"],
+        "created_at": datetime.utcnow().isoformat()
+    }
+    db.collection("ads").document(ad_id).set(data)
+    return data
 
-@router.get("/", response_model=List[AdOut])
-def list_ads():
-    return crud_ad.get_all_ads()
+@router.get("/my")
+def get_my_ads(token: str = Depends(get_token)):
+    user = get_user_by_token(token)
+    ads_ref = db.collection("ads").where("user_id", "==", user["uid"])
+    docs = ads_ref.stream()
+    return [doc.to_dict() for doc in docs]
 
-@router.get("/{ad_id}", response_model=AdOut)
-def get_ad(ad_id: str):
-    ad = crud_ad.get_ad_by_id(ad_id)
-    if not ad:
+@router.get("/{ad_id}")
+def get_ad_detail(ad_id: str):
+    doc = db.collection("ads").document(ad_id).get()
+    if not doc.exists:
         raise HTTPException(status_code=404, detail="Ad not found")
-    return ad
-
-@router.put("/{ad_id}")
-def update_ad(ad_id: str, update: AdUpdate, user_email: str = Depends(get_current_user_email)):
-    result = crud_ad.update_ad(ad_id, update, user_email)
-    if result is None:
-        raise HTTPException(status_code=404, detail="Ad not found")
-    if result == "unauthorized":
-        raise HTTPException(status_code=403, detail="Not your ad")
-    return {"detail": "Updated"}
+    return doc.to_dict()
 
 @router.delete("/{ad_id}")
-def delete_ad(ad_id: str, user_email: str = Depends(get_current_user_email)):
-    result = crud_ad.delete_ad(ad_id, user_email)
-    if result is None:
-        raise HTTPException(status_code=404, detail="Ad not found")
-    if result == "unauthorized":
-        raise HTTPException(status_code=403, detail="Not your ad")
+def delete_ad(ad_id: str, token: str = Depends(get_token)):
+    user = get_user_by_token(token)
+    doc_ref = db.collection("ads").document(ad_id)
+    doc = doc_ref.get()
+    if not doc.exists or doc.to_dict().get("user_id") != user["uid"]:
+        raise HTTPException(status_code=403, detail="Not allowed")
+    doc_ref.delete()
     return {"detail": "Deleted"}
