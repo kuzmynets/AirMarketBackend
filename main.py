@@ -3,6 +3,7 @@ import uvicorn
 from fastapi.middleware.cors import CORSMiddleware
 from app.api import ads
 from app.api import user
+from app.api import favorites
 app = FastAPI()
 
 app.add_middleware(
@@ -15,6 +16,7 @@ app.add_middleware(
 
 app.include_router(ads.router)
 app.include_router(user.router)
+app.include_router(favorites.router)
 
 # if __name__ == "__main__":
 #      uvicorn.run("app.main:app", host="127.0.0.1", port=8000, reload=True)

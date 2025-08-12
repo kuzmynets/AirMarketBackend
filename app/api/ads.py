@@ -104,6 +104,7 @@ def get_ad(ad_id: str, user_data=Depends(verify_token)):
         "is_favorite": is_favorite
     }
 
+# Додавання / видалення з вибраного
 @router.post("/{ad_id}/favorite")
 def toggle_favorite(ad_id: str, user_data=Depends(verify_token)):
     user_id = user_data["uid"]
@@ -145,20 +146,3 @@ def delete_ad(ad_id: str, user_data=Depends(verify_token)):
         raise HTTPException(status_code=403, detail="Not your ad")
     ad_ref.delete()
     return {"message": "Ad deleted"}
-
-# Додавання / видалення з вибраного
-@router.post("/{ad_id}/favorite")
-def toggle_favorite(ad_id: str, user_data=Depends(verify_token)):
-    user_ref = db.collection("users").document(user_data["uid"])
-    user_doc = user_ref.get().to_dict() or {}
-    favorites = user_doc.get("favorites", [])
-
-    if ad_id in favorites:
-        favorites.remove(ad_id)
-        msg = "Removed from favorites"
-    else:
-        favorites.append(ad_id)
-        msg = "Added to favorites"
-
-    user_ref.set({"favorites": favorites}, merge=True)
-    return {"message": msg}
