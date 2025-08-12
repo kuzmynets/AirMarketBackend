@@ -1,19 +1,14 @@
 from pydantic import BaseModel
-from typing import Optional
+from typing import List, Optional
 
-class AdBase(BaseModel):
+class CreateAd(BaseModel):
     title: str
     description: str
     price: float
+    images: List[str]
 
-class AdCreate(AdBase):
-    pass
-
-class AdUpdate(BaseModel):
+class UpdateAd(BaseModel):
     title: Optional[str] = None
     description: Optional[str] = None
     price: Optional[float] = None
-
-class AdOut(AdBase):
-    id: str
-    owner_email: str
+    images: Optional[List[str]] = None
