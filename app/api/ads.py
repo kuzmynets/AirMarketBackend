@@ -60,11 +60,12 @@ def get_ads(user_data: Optional[dict] = Depends(optional_verify_token)):  # ✅ 
 # ======================
 # 🔹 Отримання своїх оголошень (тільки для авторизованих)
 # ======================
-@router.get("/my")
-def get_my_ads(user_data=Depends(verify_token())):  # ✅
+@router.get("/my_ads")
+def get_my_ads(user_data=Depends(verify_token())):
     user_id = user_data["uid"]
-    ads = db.collection("ads").where("user_id", "==", user_id).stream()
-    return [{**ad.to_dict(), "id": ad.id} for ad in ads]
+    ads_ref = db.collection("ads").where("user_id", "==", user_id).stream()
+    ads = [{**ad.to_dict(), "id": ad.id} for ad in ads_ref]
+    return ads
 
 
 # ======================
