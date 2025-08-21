@@ -2,7 +2,6 @@ from app.core.firebase import auth
 
 from fastapi import Depends, Header, HTTPException
 from fastapi.security import OAuth2PasswordBearer
-from firebase_admin._auth_utils import InvalidIdTokenError
 from typing import Optional
 from firebase_admin import auth as fb_auth
 
