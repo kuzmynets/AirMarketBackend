@@ -13,7 +13,7 @@ db = firestore.client()
 # 🔹 Створення оголошення
 # ======================
 @router.post("/")
-def create_ad(ad: CreateAd, user_data=Depends(verify_token())):  # ✅ з дужками
+def create_ad(ad: CreateAd, user_data=Depends(verify_token())):
     ad_id = str(uuid.uuid4())
 
     # Отримуємо дані продавця
@@ -39,11 +39,11 @@ def create_ad(ad: CreateAd, user_data=Depends(verify_token())):  # ✅ з дуж
 # 🔹 Отримання всіх оголошень (для всіх)
 # ======================
 @router.get("/")
-def get_ads(user_data: Optional[dict] = Depends(optional_verify_token)):  # ✅ optional без дужок (бо не фабрика)
+def get_ads(user_data: Optional[dict] = Depends(optional_verify_token)):
     ads = db.collection("ads").stream()
 
     favorites = set()
-    if user_data:  # якщо користувач залогінений
+    if user_data:
         fav_docs = db.collection("users").document(user_data["uid"]).collection("favorites").stream()
         favorites = {fav.id for fav in fav_docs}
 
@@ -72,7 +72,7 @@ def get_my_ads(user_data=Depends(verify_token())):
 # 🔹 Отримання одного оголошення (для всіх)
 # ======================
 @router.get("/{ad_id}")
-def get_ad(ad_id: str, user_data: Optional[dict] = Depends(optional_verify_token)):  # ✅
+def get_ad(ad_id: str, user_data: Optional[dict] = Depends(optional_verify_token)):
     ad_ref = db.collection("ads").document(ad_id)
     ad_doc = ad_ref.get()
     if not ad_doc.exists:
@@ -94,6 +94,7 @@ def get_ad(ad_id: str, user_data: Optional[dict] = Depends(optional_verify_token
             ]
             full_name = " ".join(filter(None, full_name_parts))
             seller = {
+                "uid": user_id,
                 "name": full_name.strip() or "Невідомий",
                 "avatar": seller_data.get("avatar", "")
             }
@@ -121,7 +122,7 @@ def get_ad(ad_id: str, user_data: Optional[dict] = Depends(optional_verify_token
 # 🔹 Додавання / видалення з вибраного
 # ======================
 @router.post("/{ad_id}/favorite")
-def toggle_favorite(ad_id: str, user_data=Depends(verify_token())):  # ✅
+def toggle_favorite(ad_id: str, user_data=Depends(verify_token())):
     user_id = user_data["uid"]
 
     ad_ref = db.collection("ads").document(ad_id)
@@ -137,6 +138,7 @@ def toggle_favorite(ad_id: str, user_data=Depends(verify_token())):  # ✅
     else:
         fav_ref.set({"added_at": firestore.SERVER_TIMESTAMP})
         return {"message": "Added to favorites", "is_favorite": True}
+
 
 # 🔹 Отримати вибрані оголошення користувача
 @router.get("/user/favorites")
@@ -155,16 +157,17 @@ def get_favorites(user_data=Depends(verify_token())):
         {
             **ad.to_dict(),
             "id": ad.id,
-            "is_favorite": True  # бо всі вони вибрані
+            "is_favorite": True
         }
         for ad in ads
     ]
+
 
 # ======================
 # 🔹 Оновлення оголошення
 # ======================
 @router.put("/{ad_id}")
-def update_ad(ad_id: str, updated: UpdateAd, user_data=Depends(verify_token())):  # ✅
+def update_ad(ad_id: str, updated: UpdateAd, user_data=Depends(verify_token())):
     ad_ref = db.collection("ads").document(ad_id)
     ad = ad_ref.get()
     if not ad.exists:
@@ -180,7 +183,7 @@ def update_ad(ad_id: str, updated: UpdateAd, user_data=Depends(verify_token())):
 # 🔹 Видалення оголошення
 # ======================
 @router.delete("/{ad_id}")
-def delete_ad(ad_id: str, user_data=Depends(verify_token())):  # ✅
+def delete_ad(ad_id: str, user_data=Depends(verify_token())):
     ad_ref = db.collection("ads").document(ad_id)
     ad = ad_ref.get()
     if not ad.exists:
