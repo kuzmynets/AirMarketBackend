@@ -1,12 +1,10 @@
-from app.core.firebase import auth
-
-from fastapi import Depends, Header, HTTPException
+from app.core.firebase import auth, db
+from fastapi import Depends, HTTPException, status, Header
 from fastapi.security import OAuth2PasswordBearer
 from typing import Optional
 from firebase_admin import auth as fb_auth
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
-
 
 # 🔹 Використовуємо для захищених роутів (токен обов'язковий)
 def verify_token(optional: bool = False):
@@ -40,3 +38,26 @@ def optional_verify_token(authorization: Optional[str] = Header(None)):
         return decoded_token
     except Exception:
         return None
+
+def admin_required(user_data=Depends(verify_token())):
+    uid = user_data["uid"]
+    user_ref = db.collection("users").document(uid).get()
+    if not user_ref.exists or user_ref.to_dict().get("role") != "admin":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Admin access required"
+        )
+    return user_data
+
+# 🔹 Функція для отримання поточного користувача
+def get_current_user(user_data=Depends(verify_token())):
+    """
+    Повертає uid та email поточного користувача.
+    Може бути використана у Depends для захищених роутів.
+    """
+    if not user_data:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Unauthorized"
+        )
+    return user_data

@@ -1,15 +1,15 @@
 import firebase_admin
-from firebase_admin import credentials, auth, firestore
+from firebase_admin import credentials, auth as fb_auth, firestore
 
+# 🔹 Ініціалізація Firebase один раз
 cred = credentials.Certificate("firebase-key.json")
-
-try:
+if not firebase_admin._apps:
     firebase_admin.initialize_app(cred)
-except Exception:
-    pass
 
 db = firestore.client()
+auth = fb_auth
 
+# 🔹 Отримати користувача по токену
 def get_user_by_token(token: str):
     try:
         decoded_token = auth.verify_id_token(token)

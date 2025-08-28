@@ -14,12 +14,10 @@ db = firestore.client()
 # ======================
 @router.post("/")
 def create_ad(ad: CreateAd, user_data=Depends(verify_token())):
+    user_ref = db.collection("users").document(user_data["uid"]).get()
+    user_dict = user_ref.to_dict() or {}
+
     ad_id = str(uuid.uuid4())
-
-    # Отримуємо дані продавця
-    seller_ref = db.collection("users").document(user_data["uid"]).get()
-    seller = seller_ref.to_dict() or {}
-
     ad_data = {
         "title": ad.title,
         "description": ad.description,
@@ -27,21 +25,21 @@ def create_ad(ad: CreateAd, user_data=Depends(verify_token())):
         "images": ad.images,
         "created_at": datetime.utcnow(),
         "user_id": user_data["uid"],
-        "seller_name": seller.get("first_name", "Невідомий"),
-        "seller_avatar": seller.get("avatar", "")
+        "seller_name": user_dict.get("first_name", "Невідомий"),
+        "seller_avatar": user_dict.get("avatar", ""),
+        "status": "pending"
     }
 
     db.collection("ads").document(ad_id).set(ad_data)
-    return {"id": ad_id, "message": "Ad created successfully"}
+    return {"id": ad_id, "message": "Ad submitted for review"}
 
 
 # ======================
-# 🔹 Отримання всіх оголошень (для всіх)
+# 🔹 Отримання всіх оголошень (підтверджених)
 # ======================
 @router.get("/")
 def get_ads(user_data: Optional[dict] = Depends(optional_verify_token)):
-    ads = db.collection("ads").stream()
-
+    ads = db.collection("ads").where("status", "==", "approved").stream()
     favorites = set()
     if user_data:
         fav_docs = db.collection("users").document(user_data["uid"]).collection("favorites").stream()
@@ -58,7 +56,7 @@ def get_ads(user_data: Optional[dict] = Depends(optional_verify_token)):
 
 
 # ======================
-# 🔹 Отримання своїх оголошень (тільки для авторизованих)
+# 🔹 Отримання своїх оголошень (тільки авторизовані)
 # ======================
 @router.get("/my_ads")
 def get_my_ads(user_data=Depends(verify_token())):
@@ -99,7 +97,6 @@ def get_ad(ad_id: str, user_data: Optional[dict] = Depends(optional_verify_token
                 "avatar": seller_data.get("avatar", "")
             }
 
-    # Чи у вибраному
     is_favorite = False
     if user_data:
         fav_doc = db.collection("users").document(user_data["uid"]).collection("favorites").document(ad_id).get()
@@ -124,7 +121,6 @@ def get_ad(ad_id: str, user_data: Optional[dict] = Depends(optional_verify_token
 @router.post("/{ad_id}/favorite")
 def toggle_favorite(ad_id: str, user_data=Depends(verify_token())):
     user_id = user_data["uid"]
-
     ad_ref = db.collection("ads").document(ad_id)
     if not ad_ref.get().exists:
         raise HTTPException(status_code=404, detail="Ad not found")
@@ -140,11 +136,12 @@ def toggle_favorite(ad_id: str, user_data=Depends(verify_token())):
         return {"message": "Added to favorites", "is_favorite": True}
 
 
+# ======================
 # 🔹 Отримати вибрані оголошення користувача
+# ======================
 @router.get("/user/favorites")
 def get_favorites(user_data=Depends(verify_token())):
     user_id = user_data["uid"]
-
     fav_docs = db.collection("users").document(user_id).collection("favorites").stream()
     fav_ids = [doc.id for doc in fav_docs]
 
@@ -152,7 +149,6 @@ def get_favorites(user_data=Depends(verify_token())):
         return []
 
     ads = db.collection("ads").where("__name__", "in", fav_ids).stream()
-
     return [
         {
             **ad.to_dict(),
